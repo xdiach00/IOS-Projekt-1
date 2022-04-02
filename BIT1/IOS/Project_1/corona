@@ -1,0 +1,569 @@
+#!/bin/sh
+
+# Mikhail Diachenko (xdiach00)
+# IOS project 1 (corona)
+# 31.03.2022
+
+export POSIXLY_CORRECT="yes"
+
+# Inicialization of variables 
+
+DATE_AFTER="0000-00-00"
+DATE_BEFORE="3333-33-33"
+GENDER=" "
+TYPE="classic"
+SHIFT="1"
+ERROR_PRINT=""
+COMMAND=""
+CSV_FILES=""
+GZ_FILES=""
+BZ2_FILES=""
+INPUT=""
+WIDTH=""
+INTEGER_INIT='^[0-9]+$'
+
+# Function for printing 'help' information
+
+showHelp()
+{
+    printf "\n    POUŽITÍ: corona [-h] [FILTERS] [COMMAND] [LOG [LOG2 [...]]\n\n
+    Corona - analyzátor záznamů osob s prokázanou nákazou koronavirem způsobujícím onemocnění COVID-19\n\n
+    -h — vypíše nápovědu s krátkým popisem každého příkazu a přepínače\n\n
+    FILTERS:\n
+     -a DATETIME — after: jsou uvažovány pouze záznamy PO tomto datu (včetně tohoto data). DATETIME je formátu YYYY-MM-DD\n
+     -b DATETIME — before: jsou uvažovány pouze záznamy PŘED tímto datem (včetně tohoto data)\n
+     -g GENDER — jsou uvažovány pouze záznamy nakažených osob daného pohlaví. GENDER může být M (muži) nebo Z (ženy)\n
+     -s u příkazů gender, age, daily, monthly, yearly, countries, districts a regions vypisuje data ne číselně, ale graficky v podobě histogramů\n\n
+     COMMAND:\n
+      infected — spočítá počet nakažených\n
+      merge — sloučí několik souborů se záznamy do jednoho, zachovávající původní pořadí (hlavička bude ve výstupu jen jednou)\n
+      gender — vypíše počet nakažených pro jednotlivá pohlaví\n
+      age — vypíše statistiku počtu nakažených osob dle věku\n
+      daily — vypíše statistiku nakažených osob pro jednotlivé dny\n
+      monthly — vypíše statistiku nakažených osob pro jednotlivé měsíce\n
+      yearly — vypíše statistiku nakažených osob pro jednotlivé roky\n
+      countries — vypíše statistiku nakažených osob pro jednotlivé země nákazy\n
+      districts — vypíše statistiku nakažených osob pro jednotlivé okresy\n
+      regions — vypíše statistiku nakažených osob pro jednotlivé kraje\n\n"
+    exit 0
+}
+
+# Parsing of arguments
+
+while [ $# -ne 0 ]
+do
+    case "$1" in
+        -h)
+            showHelp
+            ;;
+        -a)
+            DATE_AFTER="$2"
+            SHIFT="2"
+            ;;
+        -b)
+            DATE_BEFORE="$2"
+            SHIFT="2"
+            ;;
+        -g)
+            GENDER="$2"
+            SHIFT="2"
+            ;;
+        -s)
+            case $2 in
+                ''|*[!0-9]*)
+                    WIDTH=""
+                    ;;
+                *)
+                    WIDTH="$2"
+                    SHIFT="2"
+                    ;;
+            esac
+            TYPE="graph"
+            ;;
+        infected | merge | gender | age | daily | monthly | yearly | countries | districts | regions)
+            if [ -n "$COMMAND" ]
+            then
+                echo "corona: nesprávný počet argumentů (max. 1 COMMAND)"
+                exit 1
+            else
+                COMMAND="$1"
+            fi
+            ;;
+        *.csv)
+            if [ -f "$1" ]
+            then
+                if [ "$COMMAND" = "merge" ]
+                then
+                    CSV_FILES="$1 $CSV_FILES"
+                else
+                    CSV_FILES="$1"
+                fi
+            else
+                ERROR_PRINT="$1"
+                echo "corona: špatný soubor '$ERROR_PRINT'"
+                exit 1
+            fi
+            ;;
+        *.gz)
+            if [ -f "$1" ]
+            then
+                if [ "$COMMAND" = "merge" ]
+                then
+                    GZ_FILES="$1 $GZ_FILES"
+                else
+                    GZ_FILES="$1"
+                fi
+            else
+                ERROR_PRINT="$1"
+                echo "corona: špatný soubor '$ERROR_PRINT'"
+                exit 1
+            fi
+            ;;
+        *.bz2)
+            if [ -f "$1" ]
+            then
+                if [ "$COMMAND" = "merge" ]
+                then
+                    BZ2_FILES="$1 $BZ2_FILES"
+                else
+                    BZ2_FILES="$1"
+                fi
+            else
+                ERROR_PRINT="$1"
+                echo "corona: špatný soubor '$ERROR_PRINT'"
+                exit 1
+            fi
+            ;;
+        *)
+            ERROR_PRINT="$1"
+            echo "corona: špatný argument '$ERROR_PRINT'"
+            exit 1
+            ;;
+    esac
+    if [ "$SHIFT" = "1" ]
+    then
+        shift
+    else
+        shift
+        shift
+        SHIFT="1"
+    fi
+done
+
+# Merging files with input data
+
+if [ -n "$GZ_FILES" ] && [ -n "$BZ2_FILES" ]
+then
+    INPUT="gzip -dkc $GZ_FILES | bzip2 -dkc $BZ2_FILES | cat $CSV_FILES -"
+elif [ -n "$GZ_FILES" ]
+then
+    INPUT="gzip -dkc $GZ_FILES | cat $CSV_FILES -"
+elif [ -n "$BZ2_FILES" ]
+then
+    INPUT="bzip2 -dkc $BZ2_FILES | cat $CSV_FILES -"
+elif [ -n "$CSV_FILES" ]
+then
+    INPUT="cat $CSV_FILES"
+else
+    INPUT="cat -"
+    echo "id,datum,vek,pohlavi,kraj_nuts_kod,okres_lau_kod,nakaza_v_zahranici,nakaza_zeme_csu_kod,reportovano_khs"
+fi
+
+# Applying of parameters (filtry)
+
+PARAMS="awk \
+-F, \
+-v gender=\"$GENDER\" \
+-v after=\"$DATE_AFTER\" \
+-v before=\"$DATE_BEFORE\" \
+'
+{
+    if (\$2 > after && \$2 < before)
+        if (gender == \" \")
+            print \$0;
+        else if (\$4 == gender)
+            print \$0
+}
+' \
+"
+
+# Printing a number of infected
+
+INFECTED="awk \
+'
+END \
+{
+    print NR
+}
+'
+"
+
+# Printing a number of infected by genders
+
+GENDER="awk \
+-F, \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+    tmp[\$4]+=1
+}
+END \
+{
+    if (width == \"\")
+        width = 100000
+    if (type == \"classic\") {
+        print \"M: \"tmp[\"M\"]; 
+        print \"Z: \"tmp[\"Z\"];
+    } else {
+        for (i in tmp) {
+            pr = sprintf (\"%*s\",tmp[i] / width,\" \")
+            gsub (/ /,\"#\",pr)
+            printf \"%s: %s\n\", i, pr
+        }
+    }
+}
+' \
+|sort \
+"
+
+# Printing a number of infected by countries
+
+COUNTRIES="awk \
+-F, \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+    tmp[\$8]++
+}
+END \
+{
+    if (width == \"\")
+        width = 100
+    if (type == \"classic\") {
+        for(i in tmp){
+            if(match(i, /../))
+                print i\": \"tmp[i]
+        } 
+    } else {
+        for (i in tmp) {
+            if(match(i, /../)){
+                pr = sprintf (\"%*s\",tmp[i] / width,\" \")
+                gsub (/ /,\"#\",pr)
+                printf \"%s: %s\n\", i, pr
+            }
+        }
+    }
+}
+' \
+|sort \
+"
+
+# Printing a number of infected by districts
+
+DISTRICTS="awk \
+-F, \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+    if(\$6 == \"\")
+        tmp[\"None  \"]++
+    else
+        tmp[\$6]++
+}
+END \
+{
+    if (width == \"\")
+        width = 1000
+    if (type == \"classic\") {
+        for(i in tmp){
+            if(match(i, /../))
+                print i\": \"tmp[i]
+        } 
+    } else {
+        for (i in tmp) {
+            if(match(i, /../)){
+                pr = sprintf (\"%*s\",tmp[i] / width,\" \")
+                gsub (/ /,\"#\",pr)
+                printf \"%s: %s\n\", i, pr
+            }
+        }
+    }
+}
+' \
+|sort \
+"
+
+# Printing a number of infected by regions
+
+REGIONS="awk \
+-F, \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+    if(\$5 == \"\")
+        tmp[\"None \"]++
+    else
+        tmp[\$5]++
+}
+END \
+{
+    if (width == \"\")
+        width = 10000
+    if (type == \"classic\") {
+        for(i in tmp){
+            if(match(i, /../))
+                print i\": \"tmp[i]
+        } 
+    } else {
+        for (i in tmp) {
+            if(match(i, /../)){
+                pr = sprintf (\"%*s\",tmp[i] / width,\" \")
+                gsub (/ /,\"#\",pr)
+                printf \"%s: %s\n\", i, pr
+            }
+        }
+    }
+}
+' \
+|sort \
+"
+
+# Printing a number of infected by days
+
+DAILY="awk \
+-F, \
+-v invalid=\"\" \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+    if (\$2 !~ /^[0-9-]+$/) {
+        if (invalid == \"\")
+            invalid = \"Invalid date: \" \$0;
+        else
+            invalid = invalid \"\n\" \"Invalid date: \" \$0
+    } else
+        tmp[\$2]++
+}
+END \
+{
+    if (width == \"\")
+        width = 500
+    if (type == \"classic\") {
+        for(i in tmp){
+            print i\": \"tmp[i]
+        } 
+    } else {
+        for (i in tmp) {
+            pr = sprintf (\"%*s\",tmp[i] / width,\" \")
+            gsub (/ /,\"#\",pr)
+            printf \"%s: %s\n\", i, pr
+        }
+    }
+    print invalid
+}
+' \
+|sort \
+"
+
+# Printing a number of infected by months
+
+MONTHLY="awk \
+-F, \
+-v invalid=\"\" \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+    
+    if (\$2 !~ /^[0-9-]+$/) {
+        if (invalid == \"\")
+            invalid = \"Invalid date: \" \$0;
+        else
+            invalid = invalid \"\n\" \"Invalid date: \" \$0
+    } else {
+        split(\$2,str,\"-\");
+        month=str[1]\"-\"str[2];   
+        tmp[month]++
+    }
+}
+END \
+{
+    if (width == \"\")
+        width = 10000
+    if (type == \"classic\") {
+        for(i in tmp){
+            print i\": \"tmp[i]
+        } 
+    } else {
+        for (i in tmp) {
+            pr = sprintf (\"%*s\",tmp[i] / width,\" \")
+            gsub (/ /,\"#\",pr)
+            printf \"%s: %s\n\", i, pr
+        }
+    }
+    print invalid
+}
+' \
+|sort \
+"
+
+# Printing a number of infected by years
+
+YEARLY="awk \
+-F, \
+-v invalid=\"\" \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+    if (\$2 !~ /^[0-9-]+$/) {
+        if (invalid == \"\")
+            invalid = \"Invalid date: \" \$0;
+        else
+            invalid = invalid \"\n\" \"Invalid date: \" \$0
+    } else {
+        split(\$2,str,\"-\");
+        year=str[1];   
+        tmp[year]++
+    }
+}
+END \
+{
+    if (width == \"\")
+        width = 100000
+    if (type == \"classic\") {
+        for(i in tmp){
+            print i\": \"tmp[i]
+        } 
+    } else {
+        for (i in tmp) {
+            pr = sprintf (\"%*s\",tmp[i] / width,\" \")
+            gsub (/ /,\"#\",pr)
+            printf \"%s: %s\n\", i, pr
+        }
+    }
+    print invalid
+}
+' \
+|sort \
+"
+
+# Printing a number of infected by genders
+
+AGE="awk \
+-F, \
+-v invalid=\"\" \
+-v type=\"$TYPE\" \
+-v width=\"$WIDTH\" \
+'
+{
+
+    if (\$3 !~ /^[0-9]+$/) {
+        if (invalid == \"\")
+            invalid = \"Invalid age: \" \$0;
+        else
+            invalid = invalid \"\n\" \"Invalid age: \" \$0
+    }
+    else if (int(\$3) >= 0 && int(\$3) <= 5)
+        age = \"0-5\"
+    else if (int(\$3) >= 6 && int(\$3) <= 15)
+        age = \"6-15\"
+    else if (int(\$3) >= 16 && int(\$3) <= 25)
+        age = \"16-25\"
+    else if (int(\$3) >= 26 && int(\$3) <= 35)
+        age = \"26-35\"
+    else if (int(\$3) >= 36 && int(\$3) <= 45)
+        age = \"36-45\"
+    else if (int(\$3) >= 46 && int(\$3) <= 55)
+        age = \"46-55\"
+    else if (int(\$3) >= 56 && int(\$3) <= 65)
+        age = \"56-65\"
+    else if (int(\$3) >= 66 && int(\$3) <= 75)
+        age = \"66-75\"
+    else if (int(\$3) >= 76 && int(\$3) <= 85)
+        age = \"76-85\"
+    else if (int(\$3) >= 86 && int(\$3) <= 95)
+        age = \"86-95\"
+    else if (int(\$3) >= 96 && int(\$3) <= 105)
+        age = \"96-105\"
+    else if (int(\$3) >= 106)
+        age = \">105\"
+    val[age]++
+}
+END \
+{
+    if (width == \"\")
+        width = 10000
+    if (type == \"classic\") {
+        print \"0-5    : \"val[\"0-5\"];
+        print \"6-15   : \"val[\"6-15\"];
+        print \"16-25  : \"val[\"16-25\"];
+        print \"26-35  : \"val[\"26-35\"];
+        print \"36-45  : \"val[\"36-45\"];
+        print \"46-55  : \"val[\"46-55\"];
+        print \"56-65  : \"val[\"56-65\"];
+        print \"66-75  : \"val[\"66-75\"];
+        print \"76-85  : \"val[\"76-85\"];
+        print \"86-95  : \"val[\"86-95\"];
+        print \"96-105 : \"val[\"96-105\"];
+        print \">105   : \"val[\"105\"];
+    }else {
+        for (i in val) {
+            pr = sprintf (\"%*s\",val[i] / width,\" \")
+            gsub (/ /,\"#\",pr)
+            printf \"%s: %s\n\", i, pr
+        }
+    }
+    print invalid;
+}
+' \
+"
+
+# Applying command
+
+case "$COMMAND" in
+    infected)
+        COMMAND=$INFECTED
+        ;;
+    gender)
+        COMMAND=$GENDER
+        ;;
+    countries)
+        COMMAND=$COUNTRIES
+        ;;
+    districts)
+        COMMAND=$DISTRICTS
+        ;;
+    regions)
+        COMMAND=$REGIONS
+        ;;
+    daily)
+        COMMAND=$DAILY
+        ;;
+    monthly)
+        COMMAND=$MONTHLY
+        ;;
+    yearly)
+        COMMAND=$YEARLY
+        ;;
+    merge)
+        COMMAND=""
+        ;;
+    age)
+        COMMAND=$AGE
+        ;;
+esac
+
+# Applying parameters and commands to input and showing final output
+
+if [ -n "$COMMAND" ]
+then
+    eval "$INPUT | $PARAMS | $COMMAND"
+else
+    eval "$INPUT | $PARAMS"
+fi
