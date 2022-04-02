@@ -1,5 +1,7 @@
 # Password Checker - first IZP project in FIT VUT
 
+Rated: 8.9/10
+
 1. Clone repository
 2. $ make 
 3. ./pwcheck LEVEL PARAM [--stats] <input_file
