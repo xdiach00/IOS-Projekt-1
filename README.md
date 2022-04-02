@@ -1,1 +1,1 @@
-# IOS-Projekt-1
+# Projects from VUT - FIT
