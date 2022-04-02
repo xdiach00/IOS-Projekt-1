@@ -1,5 +1,7 @@
-POUŽITÍ: corona [-h] [FILTERS] [COMMAND] [LOG [LOG2 [...]]
-    Corona - analyzátor záznamů osob s prokázanou nákazou koronavirem způsobujícím onemocnění COVID-19
+POUŽITÍ: 
+- corona [-h] [FILTERS] [COMMAND] [LOG [LOG2 [...]]
+ 
+ Corona - analyzátor záznamů osob s prokázanou nákazou koronavirem způsobujícím onemocnění COVID-19
 -    -h — vypíše nápovědu s krátkým popisem každého příkazu a přepínače
  
 FILTERS:
