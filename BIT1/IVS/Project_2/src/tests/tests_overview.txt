@@ -1,0 +1,27 @@
+
+add tests => +
+no extreme values
+
+subtract tests => -
+no extreme values
+
+multiply tests => *
+no extreme values
+
+divide tests => /
+cant be equal to 0 -> throw an error (Can't divide by 0)
+
+factorial tests => !
+greater than 0 or decimal number -> throw an error (Can't make factorial of number less than 0. Can't make factorial of decimal number)
+
+sqrt tests
+greater than 0 -> throw an error (Can't sqrt number less than 0)
+
+exponentiation tests
+greater than 0 or decimal number -> throw an error (Exponent can't be number less than 0. Exponent can't be decimal number)
+
+percentage tests => %
+no extreme values
+
+log tests
+greater than 0 -> throw an error (Can't log number less than 0)

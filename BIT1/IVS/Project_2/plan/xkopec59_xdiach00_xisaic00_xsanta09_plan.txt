@@ -1,0 +1,65 @@
+Programovací jazyk: C++
+
+Vyvíjecí platforma: Windows
+
+Termíny:
+ - 18.3. 2022 - Vytvoření plánu
+ - 19.3. 2022 - Vytvoření repozitáře
+ - 21.3. 2022 - Navrhnutí GUI
+ - 31.3. 2022 - Kódování GUI
+ - 31.3. 2022 - Testování matematické knihovny
+ - 31.3. 2022 - Naprogramování základní matematické knihovny
+ - 07.4. 2022 - Naprogramování pokročilejší matematické knihovny
+ - 07.4. 2022 - Spojení GUI s matematickou knihovnou
+ - 07.4. 2022 - Implementace klávesnice do kalkulačky
+ - 14.4. 2022 - Vytvoření profiling
+ - 14.4. 2022 - Uživatelská dokumentace
+ - 14.4. 2022 - Vývojová dokumentace
+ - 21.4. 2022 - Makefile, Instalátor, deinstalátor
+ - 28.4. 2022 - Vytvoření hodnoceni.txt, odevzdani.txt
+ - 10.5. 2022 - Individuální vytvoření problémů - problemy.txt
+ - 10.5. 2022 - Vytvoření MOCKUPu
+ - 10.5. 2022 - Vytvoření skutecnost.txt
+ - 10.5. 2022 - Vytvoření prezentace
+
+Rozdělení úkolů:
+
+ - xkopec59 Jan Kopecký
+ 	- Vytvoření repozitáře
+	- TDD knihovny
+	- Profiling
+	- Makefile, instalátor, deinstalátor
+
+ - xdiach00 Mikhail Diachenko
+ 	- Navrhnutí GUI
+	- Implementace klávesnice do kalkulačky
+	- Spojení GUI s matematickou knihovnou
+	- Makefile, Instalátor, deinstalátor
+
+ - xisaic00 Herman Isaichanka
+	- Základní operace
+	- Pokročilejší operace
+	- Uživatelská dokumentace
+
+ - xsanta09 Ivo Santarius
+	- Kódování GUI
+	- Vývojová dokumentace
+	- Mockup
+
+ - Společné
+	- hodnoceni.txt
+	- odevzdani.txt
+	- skutecnost.txt
+	- Vytvoření prezentace
+
+Komunikace:
+ - Plánování - GitHub Projects
+ - Discord
+
+Správa verzí:
+ - GitHub
+ - Repozitář = https://github.com/koupisbean/ivs-proj2
+ - V případě potřeby nahlédnutí do repozitáře bychom potřebovali contributora, kterého máme přidat.
+
+Program pro generování dokumentace:
+ - Doxygen
