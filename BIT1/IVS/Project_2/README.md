@@ -1,5 +1,7 @@
 # ivs-proj2
 
+Rated 156b (39b per member) 
+
 ## Prostředí
 
 Windows 64bit
